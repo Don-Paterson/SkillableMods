@@ -98,7 +98,7 @@ Assert-Pattern $ps1 '\$Result\s*=\s*\$Menu\s*\|\s*Out-GridView[^\n]*zone in orde
 Assert-Pattern $ps1 'if\s*\(\s*\$WindowsLanguageTag\s*-eq\s*\$NULL\s*\)'                   'WindowsLanguageTag null check'
 Assert-Pattern $ps1 'if\s*\(\s*\$GAIALanguageTag\s*-eq\s*\$NULL\s*\)'                      'GAIALanguageTag null check'
 Assert-Pattern $ps1 'if\s*\(\s*\$WindowsTimezone\s*-eq\s*\$NULL\s*\)'                      'WindowsTimezone null check'
-Assert-Pattern $ps1 "if\s*\(\s*\`\$GAIAregion\s*-eq\s*'Africa'\s*\)"                       'GAIAregion Africa branch'
+Assert-Pattern $ps1 'if\s*\(\s*\$GAIAregion\s*-eq\s*''Africa''\s*\)'                        'GAIAregion Africa branch'
 
 Write-OK "All anchors found."
 
@@ -180,7 +180,7 @@ $ps1 = [regex]::Replace($ps1,
 # 2c. GAIA region OGV - close brace before the Africa branch
 $ps1 = Wrap-OGV $ps1 '(?m)^\s*\$Result\s*=\s*\$Menu\s*\|\s*Out-GridView[^\r\n]*region in order[^\r\n]*' 'region OGV'
 $ps1 = [regex]::Replace($ps1,
-    "(\r?\n\r?\n)(if\s*\(\s*\`\$GAIAregion\s*-eq\s*'Africa'\s*\))",
+    '(\r?\n\r?\n)(if\s*\(\s*\$GAIAregion\s*-eq\s*''Africa''\s*\))',
     "`r`n  }`r`n`r`n`$2")
 
 # 2d. All zone OGVs
