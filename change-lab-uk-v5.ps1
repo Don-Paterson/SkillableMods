@@ -5,7 +5,7 @@
     runs non-interactively with UK/London/GMT presets.
 
 .DESCRIPTION
-    v5 — anchor strings matched against the live Skillable script as of 2026-03-29.
+    v5 - anchor strings matched against the live Skillable script as of 2026-03-29.
     The patcher fails loudly rather than silently patching the wrong location.
 
 .PARAMETER Path
@@ -52,7 +52,7 @@ function Backup-File {
 function Assert-Contains {
     param([string]$Content, [string]$Anchor, [string]$Label)
     if ($Content -notlike "*$Anchor*") {
-        Write-Fail "Could not find anchor for '$Label'. The Skillable script may have changed — check for a newer patcher."
+        Write-Fail "Could not find anchor for '$Label'. The Skillable script may have changed - check for a newer patcher."
     }
 }
 
@@ -126,7 +126,7 @@ Write-OK "All anchors found."
 # ---------------------------------------------------------------------------
 Write-Step "Verifying anchors in changes.cmd ..."
 
-# Both invocation lines pass only %COMPUTERNAME% — we need to add %1
+# Both invocation lines pass only %COMPUTERNAME% - we need to add %1
 $anchor_cmd_remote = "PowerShell.exe -Command `"& '%~dpn0.ps1'`"  '%COMPUTERNAME%'"
 
 $cmdCount = ([regex]::Matches($cmd, [regex]::Escape($anchor_cmd_remote))).Count
@@ -160,7 +160,7 @@ switch ($Preset) {
         $GAIAregion         = 'Europe'
         $GAIAzone           = 'London'
         Write-Host ""
-        Write-Host "      [SkillableMods] UK preset active — skipping interactive menus." -ForegroundColor Green
+        Write-Host "      [SkillableMods] UK preset active - skipping interactive menus." -ForegroundColor Green
         Write-Host ""
     }
     default {
@@ -246,7 +246,7 @@ if ($ps1 -like "*$rgNullOld*") {
 $zoneOGV     = "`$Result = `$Menu | Out-GridView -PassThru  -Title 'Please select a zone in order to change the timezone on GAIA-VMs'"
 $zoneOGV_new = "  if (`$Preset -eq '') {`r`n  `$Result = `$Menu | Out-GridView -PassThru  -Title 'Please select a zone in order to change the timezone on GAIA-VMs'"
 
-# All zone Out-GridView lines are identical — replace them all
+# All zone Out-GridView lines are identical - replace them all
 $zoneCount = ([regex]::Matches($ps1, [regex]::Escape($zoneOGV))).Count
 if ($zoneCount -eq 0) { Write-Fail "Could not find any GAIA zone Out-GridView lines." }
 $ps1 = $ps1.Replace($zoneOGV, $zoneOGV_new)
@@ -278,7 +278,7 @@ if ($zoneCloseCount -gt 0) {
 Write-OK "changes.ps1 patched ($zoneCount zone Out-GridView blocks guarded)."
 
 # ---------------------------------------------------------------------------
-# Patch changes.cmd — pass %1 through to the PowerShell script
+# Patch changes.cmd - pass %1 through to the PowerShell script
 # ---------------------------------------------------------------------------
 Write-Step "Patching changes.cmd ..."
 
