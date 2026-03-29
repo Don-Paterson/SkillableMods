@@ -22,7 +22,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$Path = $PSScriptRoot,
+    [string]$Path = $(if ($PSScriptRoot) { $PSScriptRoot } else { $PWD.Path }),
     [switch]$CreateLauncher
 )
 
