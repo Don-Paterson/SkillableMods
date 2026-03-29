@@ -26,7 +26,6 @@ param(
     [switch]$CreateLauncher
 )
 
-Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 # Resolve Path in script body so irm | iex works (param defaults eval too early)
