@@ -99,15 +99,15 @@ $ps1Patched = $ps1Original
 $cmdPatched = $cmdOriginal
 
 # 1) Add preset argument support
-$ps1Patched = Replace-Once -Content $ps1Patched -Label 'preset argument support' -Old @"
+$ps1Patched = Replace-Once -Content $ps1Patched -Label 'preset argument support' -Old @'
 $ComputerName = $args[0]
-"@ -New @"
+'@ -New @'
 $ComputerName = $args[0]
-$UsePresetUK = ($args -contains 'uk') -or ($args -contains '-UsePresetUK')
-"@
+$UsePresetUK = ($args -contains ''uk'') -or ($args -contains ''-UsePresetUK'')
+'@
 
 # 2) Keyboard picker
-$ps1Patched = Replace-Once -Content $ps1Patched -Label 'keyboard picker' -Old @"
+$ps1Patched = Replace-Once -Content $ps1Patched -Label 'keyboard picker' -Old @'
   $Result = $Menu | Out-GridView -PassThru  -Title 'To change the keyboard layout for all VMs make a selection'
 
   Switch ($Result)  {
@@ -150,7 +150,7 @@ $ps1Patched = Replace-Once -Content $ps1Patched -Label 'keyboard picker' -Old @"
 
 
 } 
-"@ -New @"
+'@ -New @'
 if($UsePresetUK){
   $WindowsLanguageTag ='en-GB'
   $GAIALanguageTag='uk'
@@ -199,14 +199,14 @@ else {
 
 } 
 }
-"@
+'@
 
 # 3) Windows timezone picker
-$ps1Patched = Replace-Once -Content $ps1Patched -Label 'Windows timezone picker start' -Old @"
+$ps1Patched = Replace-Once -Content $ps1Patched -Label 'Windows timezone picker start' -Old @'
   $Result = $Menu | Out-GridView -PassThru  -Title 'To change the time zone for all Windows-VMs make a selection'
 
   Switch ($Result)  {
-"@ -New @"
+'@ -New @'
 if($UsePresetUK){
   $WindowsTimezone ='GMT Standard Time'
 }
@@ -214,21 +214,21 @@ else {
   $Result = $Menu | Out-GridView -PassThru  -Title 'To change the time zone for all Windows-VMs make a selection'
 
   Switch ($Result)  {
-"@
+'@
 
-$ps1Patched = Replace-Once -Content $ps1Patched -Label 'Windows timezone picker end' -Old @"
+$ps1Patched = Replace-Once -Content $ps1Patched -Label 'Windows timezone picker end' -Old @'
 }
 
 if($WindowsTimezone -eq $NULL){
-"@ -New @"
+'@ -New @'
 }
 }
 
 if($WindowsTimezone -eq $NULL){
-"@
+'@
 
 # 4) GAIA region picker
-$ps1Patched = Replace-Once -Content $ps1Patched -Label 'GAIA region picker' -Old @"
+$ps1Patched = Replace-Once -Content $ps1Patched -Label 'GAIA region picker' -Old @'
   $Result = $Menu | Out-GridView -PassThru  -Title 'Please select a region in order to change the timezone on all GAIA-VMs' 
 
   Switch ($Result)  {
@@ -252,7 +252,7 @@ $ps1Patched = Replace-Once -Content $ps1Patched -Label 'GAIA region picker' -Old
 {$Result.Name -eq 16} {$GAIAregion ='US'}  
 
 }
-"@ -New @"
+'@ -New @'
 if($UsePresetUK){
   $GAIAregion ='Europe'
 }
@@ -281,10 +281,10 @@ else {
 
 }
 }
-"@
+'@
 
 # 5) Europe zone picker
-$ps1Patched = Replace-Once -Content $ps1Patched -Label 'Europe zone picker start' -Old @"
+$ps1Patched = Replace-Once -Content $ps1Patched -Label 'Europe zone picker start' -Old @'
   $Result = $Menu | Out-GridView -PassThru  -Title 'Please select a zone in order to change the timezone on GAIA-VMs' 
 
   Switch ($Result)  {
@@ -317,7 +317,7 @@ $ps1Patched = Replace-Once -Content $ps1Patched -Label 'Europe zone picker start
 {$Result.Name -eq 25} {$GAIAzone ='Ljubljana'}
 {$Result.Name -eq 26} {$GAIAzone ='London'}
 {$Result.Name -eq 27} {$GAIAzone ='Luxembourg'}
-"@ -New @"
+'@ -New @'
 if($UsePresetUK){
   $GAIAzone ='London'
 }
@@ -354,29 +354,29 @@ else {
 {$Result.Name -eq 25} {$GAIAzone ='Ljubljana'}
 {$Result.Name -eq 26} {$GAIAzone ='London'}
 {$Result.Name -eq 27} {$GAIAzone ='Luxembourg'}
-"@
+'@
 
-$ps1Patched = Replace-Once -Content $ps1Patched -Label 'Europe zone picker end' -Old @"
+$ps1Patched = Replace-Once -Content $ps1Patched -Label 'Europe zone picker end' -Old @'
 {$Result.Name -eq 61} {$GAIAzone ='Zurich'}
 
 }
 
 
 }
-"@ -New @"
+'@ -New @'
 {$Result.Name -eq 61} {$GAIAzone ='Zurich'}
 
 }
 }
 }
-"@
+'@
 
 # 6) Pass arguments through from changes.cmd
-$cmdPatched = Replace-Once -Content $cmdPatched -Label 'changes.cmd remote call' -Old @"
-PowerShell.exe -Command "& '%~dpn0.ps1'"  '%COMPUTERNAME%'
-"@ -New @"
+$cmdPatched = Replace-Once -Content $cmdPatched -Label 'changes.cmd remote call' -Old @'
+PowerShell.exe -Command "& ''%~dpn0.ps1''"  ''%COMPUTERNAME%''
+'@ -New @'
 PowerShell.exe -ExecutionPolicy Bypass -File "%~dpn0.ps1" "%COMPUTERNAME%" %*
-"@
+'@
 
 if ($ps1Patched -eq $ps1Original -and $cmdPatched -eq $cmdOriginal) {
     Write-WarnMsg "No changes were needed. The files may already be patched."
