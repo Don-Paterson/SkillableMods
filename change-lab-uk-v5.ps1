@@ -85,19 +85,17 @@ if ($ps1 -match 'SkillableMods-v5') {
 }
 
 # ---------------------------------------------------------------------------
-# Verify anchors using regex - tolerant of spacing/CRLF variations
+# Verify anchors
 # ---------------------------------------------------------------------------
 Write-Step "Verifying anchors in changes.ps1 ..."
 
-Assert-Pattern $ps1 '\$ComputerName\s*=\s*\$args\[0\]'                                    '$ComputerName = $args[0]'
-Assert-Pattern $ps1 '\$Result\s*=\s*\$Menu\s*\|\s*Out-GridView[^\n]*keyboard layout'       'keyboard Out-GridView'
-Assert-Pattern $ps1 '\$Result\s*=\s*\$Menu\s*\|\s*Out-GridView[^\n]*time zone'             'timezone Out-GridView'
-Assert-Pattern $ps1 '\$Result\s*=\s*\$Menu\s*\|\s*Out-GridView[^\n]*region in order'       'GAIA region Out-GridView'
-Assert-Pattern $ps1 '\$Result\s*=\s*\$Menu\s*\|\s*Out-GridView[^\n]*zone in order'         'GAIA zone Out-GridView'
-Assert-Pattern $ps1 'if\s*\(\s*\$WindowsLanguageTag\s*-eq\s*\$NULL\s*\)'                   'WindowsLanguageTag null check'
-Assert-Pattern $ps1 'if\s*\(\s*\$GAIALanguageTag\s*-eq\s*\$NULL\s*\)'                      'GAIALanguageTag null check'
-Assert-Pattern $ps1 'if\s*\(\s*\$WindowsTimezone\s*-eq\s*\$NULL\s*\)'                      'WindowsTimezone null check'
-Assert-Pattern $ps1 'if\s*\(\s*\$GAIAregion\s*-eq\s*''Africa''\s*\)'                        'GAIAregion Africa branch'
+Assert-Pattern $ps1 '\$ComputerName\s*=\s*\$args\[0\]'                              '$ComputerName = $args[0]'
+Assert-Pattern $ps1 '\$Result\s*=\s*\$Menu\s*\|\s*Out-GridView[^\n]*keyboard layout' 'keyboard Out-GridView'
+Assert-Pattern $ps1 '\$Result\s*=\s*\$Menu\s*\|\s*Out-GridView[^\n]*time zone'       'timezone Out-GridView'
+Assert-Pattern $ps1 '\$Result\s*=\s*\$Menu\s*\|\s*Out-GridView[^\n]*region in order' 'GAIA region Out-GridView'
+Assert-Pattern $ps1 'if\s*\(\s*\$WindowsLanguageTag\s*-eq\s*\$NULL\s*\)'             'WindowsLanguageTag null check'
+Assert-Pattern $ps1 'if\s*\(\s*\$GAIALanguageTag\s*-eq\s*\$NULL\s*\)'               'GAIALanguageTag null check'
+Assert-Pattern $ps1 'if\s*\(\s*\$WindowsTimezone\s*-eq\s*\$NULL\s*\)'               'WindowsTimezone null check'
 
 Write-OK "All anchors found."
 
@@ -125,75 +123,70 @@ Backup-File $cmdPath
 # ---------------------------------------------------------------------------
 Write-Step "Patching changes.ps1 ..."
 
-# The preset block to inject - stored as a plain string with no smart quotes
-$presetBlock = "`r`n`r`n# --- SkillableMods-v5 preset block (begin) ---`r`n" +
-    "`$Preset = if (`$args[1]) { `$args[1].ToString().ToLower() } else { '' }`r`n" +
-    "switch (`$Preset) {`r`n" +
-    "    'uk' {`r`n" +
-    "        `$WindowsLanguageTag = 'en-GB'`r`n" +
-    "        `$GAIALanguageTag    = 'uk'`r`n" +
-    "        `$WindowsTimezone    = 'GMT Standard Time'`r`n" +
-    "        `$GAIAregion         = 'Europe'`r`n" +
-    "        `$GAIAzone           = 'London'`r`n" +
-    "        Write-Host ''`r`n" +
-    "        Write-Host '      [SkillableMods] UK preset active - skipping interactive menus.' -ForegroundColor Green`r`n" +
-    "        Write-Host ''`r`n" +
-    "    }`r`n" +
-    "    default { `$Preset = '' }`r`n" +
-    "}`r`n" +
-    "# --- SkillableMods-v5 preset block (end) ---`r`n"
+# Build preset block as concatenated string - no here-strings, no smart quotes
+$nl = "`r`n"
+$presetBlock  = $nl + $nl
+$presetBlock += "# --- SkillableMods-v5 preset block (begin) ---" + $nl
+$presetBlock += "`$Preset = if (`$args[1]) { `$args[1].ToString().ToLower() } else { '' }" + $nl
+$presetBlock += "switch (`$Preset) {" + $nl
+$presetBlock += "    'uk' {" + $nl
+$presetBlock += "        `$WindowsLanguageTag = 'en-GB'" + $nl
+$presetBlock += "        `$GAIALanguageTag    = 'uk'" + $nl
+$presetBlock += "        `$WindowsTimezone    = 'GMT Standard Time'" + $nl
+$presetBlock += "        `$GAIAregion         = 'Europe'" + $nl
+$presetBlock += "        `$GAIAzone           = 'London'" + $nl
+$presetBlock += "        Write-Host ''" + $nl
+$presetBlock += "        Write-Host '      [SkillableMods] UK preset active - skipping interactive menus.' -ForegroundColor Green" + $nl
+$presetBlock += "        Write-Host ''" + $nl
+$presetBlock += "    }" + $nl
+$presetBlock += "    default { `$Preset = '' }" + $nl
+$presetBlock += "}" + $nl
+$presetBlock += "# --- SkillableMods-v5 preset block (end) ---" + $nl
 
 # 1. Inject preset block after the $args[0] line
 $ps1 = [regex]::Replace($ps1,
     '(\$ComputerName\s*=\s*\$args\[0\][^\r\n]*)',
     { param($m) $m.Value + $presetBlock })
 
-if ($ps1 -notmatch 'SkillableMods-v5') {
-    Write-Fail "Preset block injection failed."
-}
+if ($ps1 -notmatch 'SkillableMods-v5') { Write-Fail "Preset block injection failed." }
 Write-OK "Preset block injected."
 
-# 2. Helper: prepend if-guard to an Out-GridView line
-function Wrap-OGV {
-    param([string]$Content, [string]$Pattern, [string]$Label)
-    $result = [regex]::Replace($Content, $Pattern, {
-        param($m)
-        "  if (`$Preset -eq '') {`r`n  " + $m.Value.TrimStart()
-    })
-    if ($result -eq $Content) { Write-Fail "OGV wrap had no effect for '$Label'." }
-    return $result
-}
-
-# 2a. Keyboard OGV - close brace before WindowsLanguageTag null check
-$ps1 = Wrap-OGV $ps1 '(?m)^\s*\$Result\s*=\s*\$Menu\s*\|\s*Out-GridView[^\r\n]*keyboard layout[^\r\n]*' 'keyboard OGV'
+# 2. Wrap keyboard Out-GridView in if ($Preset -eq '') / }
+#    Close brace goes before the WindowsLanguageTag null check
+$ps1 = [regex]::Replace($ps1,
+    '(?m)^\s*\$Result\s*=\s*\$Menu\s*\|\s*Out-GridView[^\r\n]*keyboard layout[^\r\n]*',
+    { param($m) "  if (`$Preset -eq '') {" + "`r`n  " + $m.Value.TrimStart() })
 $ps1 = [regex]::Replace($ps1,
     '(if\s*\(\s*\$WindowsLanguageTag\s*-eq\s*\$NULL\s*\))',
-    "}`r`n`r`n`$1")
+    "}" + "`r`n`r`n" + '$1')
+Write-OK "Keyboard OGV wrapped."
 
-# 2b. Timezone OGV - close brace before WindowsTimezone null check
-$ps1 = Wrap-OGV $ps1 '(?m)^\s*\$Result\s*=\s*\$Menu\s*\|\s*Out-GridView[^\r\n]*time zone[^\r\n]*' 'timezone OGV'
+# 3. Wrap timezone Out-GridView in if ($Preset -eq '') / }
+#    Close brace goes before the WindowsTimezone null check
+$ps1 = [regex]::Replace($ps1,
+    '(?m)^\s*\$Result\s*=\s*\$Menu\s*\|\s*Out-GridView[^\r\n]*time zone[^\r\n]*',
+    { param($m) "  if (`$Preset -eq '') {" + "`r`n  " + $m.Value.TrimStart() })
 $ps1 = [regex]::Replace($ps1,
     '(if\s*\(\s*\$WindowsTimezone\s*-eq\s*\$NULL\s*\))',
-    "}`r`n`r`n`$1")
+    "}" + "`r`n`r`n" + '$1')
+Write-OK "Timezone OGV wrapped."
 
-# 2c. GAIA region OGV - close brace before the Africa branch
-$ps1 = Wrap-OGV $ps1 '(?m)^\s*\$Result\s*=\s*\$Menu\s*\|\s*Out-GridView[^\r\n]*region in order[^\r\n]*' 'region OGV'
+# 4. Wrap the GAIA region OGV AND the entire GAIAregion if-chain in one block.
+#    Open:  before the region Out-GridView line
+#    Close: before the line that begins the actual GAIA processing:
+#           $GAIAtimezone=$GAIAregion, $GAIAzone -join ' / '
+#    This avoids touching the 16 zone OGV blocks individually.
 $ps1 = [regex]::Replace($ps1,
-    '(\r?\n\r?\n)(if\s*\(\s*\$GAIAregion\s*-eq\s*''Africa''\s*\))',
-    "`r`n  }`r`n`r`n`$2")
+    '(?m)^\s*\$Result\s*=\s*\$Menu\s*\|\s*Out-GridView[^\r\n]*region in order[^\r\n]*',
+    { param($m) "  if (`$Preset -eq '') {" + "`r`n  " + $m.Value.TrimStart() })
 
-# 2d. All zone OGVs
-$zoneCount = ([regex]::Matches($ps1, 'Out-GridView[^\r\n]*zone in order')).Count
-$ps1 = Wrap-OGV $ps1 '(?m)^\s*\$Result\s*=\s*\$Menu\s*\|\s*Out-GridView[^\r\n]*zone in order[^\r\n]*' 'zone OGVs'
-
-# Close zone if-wrappers: insert closing brace after each zone Switch block.
-# Each zone Switch ends with a lone '}' line, followed by blank lines, then
-# the region-if closing '}'. We add our '  }' after the Switch '}'.
+# Close wrapper before the Windows processing block
+# Anchor: $IPsCollection = {$WindowsIPs}.Invoke() which immediately precedes it
 $ps1 = [regex]::Replace($ps1,
-    '(?m)^(\})((\r?\n)+)(\})',
-    "`$1`r`n  }`$2`$4")
+    '(\$IPsCollection\s*=\s*\{\$WindowsIPs\}\.Invoke\(\))',
+    "  }" + "`r`n`r`n" + '$1')
+Write-OK "GAIA region/zone OGV section wrapped."
 
-Write-OK "Wrapped $zoneCount zone Out-GridView blocks."
 Write-OK "changes.ps1 patched."
 
 # ---------------------------------------------------------------------------
@@ -203,7 +196,7 @@ Write-Step "Patching changes.cmd ..."
 
 $cmd = [regex]::Replace($cmd,
     "(PowerShell\.exe\s+-Command\s+`"&\s+'%~dpn0\.ps1'`"\s+'%COMPUTERNAME%')",
-    "`$1  '%1'")
+    '$1  ' + "'" + '%1' + "'")
 
 Write-OK "changes.cmd patched."
 
@@ -211,10 +204,8 @@ Write-OK "changes.cmd patched."
 # Write patched files
 # ---------------------------------------------------------------------------
 Write-Step "Writing patched files ..."
-
 [System.IO.File]::WriteAllText($ps1Path, $ps1, [System.Text.Encoding]::UTF8)
 [System.IO.File]::WriteAllText($cmdPath, $cmd, [System.Text.Encoding]::UTF8)
-
 Write-OK "changes.ps1 written."
 Write-OK "changes.cmd written."
 
@@ -224,7 +215,7 @@ Write-OK "changes.cmd written."
 if ($CreateLauncher) {
     Write-Step "Creating run-uk.cmd ..."
     $launcherPath    = Join-Path $Path 'run-uk.cmd'
-    $launcherContent = "@ECHO OFF`r`ncall `"%~dp0changes.cmd`" uk`r`n"
+    $launcherContent = "@ECHO OFF" + "`r`n" + 'call "%~dp0changes.cmd" uk' + "`r`n"
     [System.IO.File]::WriteAllText($launcherPath, $launcherContent, [System.Text.Encoding]::ASCII)
     Write-OK "run-uk.cmd created."
 }
@@ -236,6 +227,6 @@ Write-Host ""
 Write-Host "  Patching complete." -ForegroundColor White
 Write-Host ""
 Write-Host "  Usage:" -ForegroundColor White
-Write-Host "    changes.cmd uk      <- runs with UK/London/GMT preset, no menus"
-Write-Host "    changes.cmd         <- runs interactively as before"
+Write-Host "    .\changes.cmd uk      <- runs with UK/London/GMT preset, no menus"
+Write-Host "    .\changes.cmd         <- runs interactively as before"
 Write-Host ""
