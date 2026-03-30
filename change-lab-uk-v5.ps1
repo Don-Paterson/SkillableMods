@@ -194,9 +194,9 @@ Write-OK "changes.ps1 patched."
 # ---------------------------------------------------------------------------
 Write-Step "Patching changes.cmd ..."
 
-$cmd = [regex]::Replace($cmd,
-    "(PowerShell\.exe\s+-Command\s+`"&\s+'%~dpn0\.ps1'`"\s+'%COMPUTERNAME%')",
-    '$1  ' + "'" + '%1' + "'")
+$p_invoke = 'PowerShell\.exe(\s+-Command\s+"&\s+' + "'%~dpn0\.ps1'" + '"\s+' + "'%COMPUTERNAME%'" + ')'
+$r_invoke = 'PowerShell.exe -NoProfile -NonInteractive$1  ' + "'%1'"
+$cmd = [regex]::Replace($cmd, $p_invoke, $r_invoke)
 
 Write-OK "changes.cmd patched."
 
