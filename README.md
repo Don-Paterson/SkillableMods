@@ -117,7 +117,7 @@ copy changes.cmd.bak-20260330-093021 changes.cmd
 
 ## Notes
 
-- Tested on the ArrowECS / Skillable Check Point lab environment (CPR82_CCSA and related courses).
+- Tested in the Skillable Check Point lab environment (CPR82_CCSA lab).
 - RDP-HOST is used as the orchestration point - it has WinRM access to Windows VMs and plink available for GAIA hosts.
 - The patcher uses regex matching so minor formatting differences in the Skillable scripts are handled gracefully.
 - If Skillable significantly revises `changes.ps1` in a future lab version, the patcher will stop and report which anchor it could not find rather than patching silently.
