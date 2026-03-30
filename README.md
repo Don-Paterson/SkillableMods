@@ -1,21 +1,28 @@
 # SkillableMods
 
-Helpers for patching the Skillable lab `changes.ps1` / `changes.cmd` workflow so a UK preset can be applied without manually clicking through the menus.
+Helpers for patching the Skillable lab `changes.ps1` / `changes.cmd` workflow so UK settings can be applied to all lab VMs without manually clicking through menus.
 
-## What this does
+## Quick start
 
-The patcher modifies the local lab files:
+Run this on **RDP-HOST** at the start of every new lab instance:
 
-- `changes.ps1`
-- `changes.cmd`
-
-After patching, running:
-
-```
-.\changes.cmd uk
+```powershell
+irm "https://raw.githubusercontent.com/Don-Paterson/SkillableMods/main/run-uk-setup.ps1?$(Get-Date -Format 'yyyyMMddHHmmss')" | iex
 ```
 
-automatically applies these settings across all lab VMs with no interactive menus:
+That's it. No menus, no interaction. The script patches the lab files and applies UK settings in one shot.
+
+## What it does
+
+Running the one-liner above performs two steps automatically:
+
+**Step 1 - Patch the lab scripts (once per lab instance)**
+
+Downloads and runs `change-lab-uk-v5.ps1`, which modifies `C:\scripts\changes.ps1` and `C:\scripts\changes.cmd` to support a non-interactive `uk` preset. If the scripts have already been patched (e.g. you are re-running on the same instance), this step is skipped automatically.
+
+**Step 2 - Apply UK settings**
+
+Runs `changes.ps1` with the `uk` preset, pushing the following settings to all reachable VMs and GAIA hosts:
 
 | Setting | Value |
 |---|---|
@@ -24,23 +31,60 @@ automatically applies these settings across all lab VMs with no interactive menu
 | GAIA region | Europe |
 | GAIA zone | London |
 
-The original logic in `changes.ps1` is fully preserved. Running `.\changes.cmd` without an argument still works interactively as before.
+Windows VMs are updated via WinRM and rebooted. GAIA hosts are updated via SSH (plink) and rebooted.
 
-## Current version
+## Files
 
-**`change-lab-uk-v5.ps1`** — use this. Earlier versions (v3, v4) are kept for reference only.
+| File | Purpose |
+|---|---|
+| `run-uk-setup.ps1` | One-shot setup script - download, patch, and apply in a single command |
+| `change-lab-uk-v5.ps1` | Patcher - modifies `changes.ps1` and `changes.cmd` |
+| `change-lab-uk-v3.ps1` | Older version, kept for reference |
+| `change-lab-uk-v4.ps1` | Older version, kept for reference |
+| `change-lab-uk.ps1` | Original version, kept for reference |
 
-v5 improvements over earlier versions:
-- Uses regex matching throughout so minor whitespace variations in the Skillable script do not cause anchor failures
-- Adds `-NoProfile -NonInteractive` to the PowerShell invocation in `changes.cmd` so it works correctly when launched from a PowerShell 7 (pwsh) prompt
-- Detects if already patched and exits cleanly on re-run
-- Fails loudly with a clear message rather than silently patching the wrong location
+## After the script runs
 
-## Usage
+You will see output like:
 
-### Step 1 — Patch the lab files (once per lab instance)
+```
+  [SkillableMods] UK preset active - skipping interactive menus.
+  ... making changes to Windows hosts ...
+  ... making changes to GAIA hosts (time zone = 'Europe / London' and keyboard layout = 'uk')
+                done!
+```
 
-Run from RDP-HOST in PowerShell. This downloads the patcher, verifies it is the correct version, saves it to a temp file, and runs it against the scripts in `C:\scripts`:
+Some hosts may be reported as skipped:
+
+```
+  ... skipped GAIA hosts
+      10.1.1.4
+      10.1.1.111
+  Please refer to the lab topology if the skipped hosts are used during this course!
+```
+
+Skipped hosts are simply not reachable at the time the script runs - typically because they are not part of the current lab topology, are powered off, or are still booting. This is normal and expected.
+
+Wait for all VMs to finish rebooting before starting the lab exercises.
+
+## Applying UK settings again on the same instance
+
+If you need to re-run the UK settings on an already-patched instance (e.g. after a VM rebuild), just run the same one-liner again - or call the script directly:
+
+```powershell
+cd C:\scripts
+.\changes.cmd uk
+```
+
+## Advanced usage
+
+**Different scripts folder:**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "$env:TEMP\change-lab-uk-v5.ps1" -Path "C:\path\to\folder"
+```
+
+**Run patcher only, without applying settings:**
 
 ```powershell
 $url = "https://raw.githubusercontent.com/Don-Paterson/SkillableMods/main/change-lab-uk-v5.ps1?$(Get-Date -Format 'yyyyMMddHHmmss')"
@@ -49,40 +93,11 @@ if ($script -notmatch 'IPsCollection') { Write-Error "Wrong version - do not run
 powershell -ExecutionPolicy Bypass -File "$env:TEMP\v5.ps1" -Path C:\scripts
 ```
 
-If your lab scripts are in a different folder, change `-Path C:\scripts` accordingly.
-
-### Step 2 — Apply UK settings
+**Create a double-click launcher (`run-uk.cmd`):**
 
 ```powershell
-cd C:\scripts
-.\changes.cmd uk
+powershell -ExecutionPolicy Bypass -File "$env:TEMP\v5.ps1" -Path C:\scripts -CreateLauncher
 ```
-
-That's it. No menus. The script pushes keyboard and timezone changes to all reachable Windows VMs and GAIA hosts, then reboots them.
-
-### Subsequent runs on the same lab instance
-
-The patcher only needs to run once per lab instance. After that, just:
-
-```powershell
-cd C:\scripts
-.\changes.cmd uk
-```
-
-Re-running the patcher on an already-patched instance is safe — it detects the existing patch and exits without making changes.
-
-## What gets skipped
-
-The script will report any hosts it could not reach, for example:
-
-```
-... skipped GAIA hosts
-    10.1.1.4
-    10.1.1.111
-Please refer to the lab topology if the skipped hosts are used during this course!
-```
-
-Skipped hosts are simply not reachable via WinRM or SSH at the time the script runs — typically because they are not part of the current lab topology, are powered off, or are still booting. This is normal and expected.
 
 ## Backups
 
@@ -100,20 +115,13 @@ copy changes.ps1.bak-20260330-093021 changes.ps1
 copy changes.cmd.bak-20260330-093021 changes.cmd
 ```
 
-## Optional: double-click launcher
-
-Pass `-CreateLauncher` to also create `run-uk.cmd` in the scripts folder:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File "$env:TEMP\v5.ps1" -Path C:\scripts -CreateLauncher
-```
-
-`run-uk.cmd` simply calls `changes.cmd uk` and can be double-clicked from Explorer.
-
 ## Notes
 
-- The patcher targets the Skillable script layout as of mid-2025. If Skillable significantly revises `changes.ps1` in a future lab version, the patcher will stop and report which anchor it could not find rather than patching silently.
-- The patcher uses regex matching so minor formatting differences (extra spaces, different line endings) are handled gracefully.
+- Tested on the ArrowECS / Skillable Check Point lab environment (CPR82_CCSA and related courses).
+- RDP-HOST is used as the orchestration point - it has WinRM access to Windows VMs and plink available for GAIA hosts.
+- The patcher uses regex matching so minor formatting differences in the Skillable scripts are handled gracefully.
+- If Skillable significantly revises `changes.ps1` in a future lab version, the patcher will stop and report which anchor it could not find rather than patching silently.
+- The `-NoProfile -NonInteractive` flags are included in the PowerShell invocation to prevent issues when running from a PowerShell 7 (pwsh) prompt.
 
 ## Disclaimer
 
