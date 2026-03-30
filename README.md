@@ -4,101 +4,119 @@ Helpers for patching the Skillable lab `changes.ps1` / `changes.cmd` workflow so
 
 ## What this does
 
-The bootstrap script patches the local lab files:
+The patcher modifies the local lab files:
 
 - `changes.ps1`
 - `changes.cmd`
 
-After patching, you can run:
+After patching, running:
 
-```powershell
-changes.cmd uk
+```
+.\changes.cmd uk
 ```
 
-and the script will automatically use these selections:
+automatically applies these settings across all lab VMs with no interactive menus:
 
-- Keyboard: **English (United Kingdom)**
-- Windows time zone: **GMT Standard Time**
-- GAIA region: **Europe**
-- GAIA zone: **London**
+| Setting | Value |
+|---|---|
+| Keyboard | English (United Kingdom) |
+| Windows time zone | GMT Standard Time |
+| GAIA region | Europe |
+| GAIA zone | London |
 
-The original remote lab-wide logic in `changes.ps1` is preserved. This only preselects the menu choices.
+The original logic in `changes.ps1` is fully preserved. Running `.\changes.cmd` without an argument still works interactively as before.
 
-## Files
+## Current version
 
-- `change-lab-uk.ps1` — bootstrap patcher
-- `README.md`
-- `LICENSE`
+**`change-lab-uk-v5.ps1`** — use this. Earlier versions (v3, v4) are kept for reference only.
+
+v5 improvements over earlier versions:
+- Uses regex matching throughout so minor whitespace variations in the Skillable script do not cause anchor failures
+- Adds `-NoProfile -NonInteractive` to the PowerShell invocation in `changes.cmd` so it works correctly when launched from a PowerShell 7 (pwsh) prompt
+- Detects if already patched and exits cleanly on re-run
+- Fails loudly with a clear message rather than silently patching the wrong location
 
 ## Usage
 
-Run the bootstrap patcher from PowerShell:
+### Step 1 — Patch the lab files (once per lab instance)
+
+Run from RDP-HOST in PowerShell. This downloads the patcher, verifies it is the correct version, saves it to a temp file, and runs it against the scripts in `C:\scripts`:
 
 ```powershell
-irm https://raw.githubusercontent.com/Don-Paterson/SkillableMods/main/change-lab-uk.ps1 | iex
+$url = "https://raw.githubusercontent.com/Don-Paterson/SkillableMods/main/change-lab-uk-v5.ps1?$(Get-Date -Format 'yyyyMMddHHmmss')"
+$script = irm $url
+if ($script -notmatch 'IPsCollection') { Write-Error "Wrong version - do not run" } else { $script | Out-File "$env:TEMP\v5.ps1" -Encoding utf8 }
+powershell -ExecutionPolicy Bypass -File "$env:TEMP\v5.ps1" -Path C:\scripts
 ```
 
-Safer method:
+If your lab scripts are in a different folder, change `-Path C:\scripts` accordingly.
+
+### Step 2 — Apply UK settings
 
 ```powershell
-iwr https://raw.githubusercontent.com/Don-Paterson/SkillableMods/main/change-lab-uk.ps1 -OutFile .\change-lab-uk.ps1
-powershell -ExecutionPolicy Bypass -File .\change-lab-uk.ps1
+cd C:\scripts
+.\changes.cmd uk
 ```
 
-If the script files are in a different folder:
+That's it. No menus. The script pushes keyboard and timezone changes to all reachable Windows VMs and GAIA hosts, then reboots them.
+
+### Subsequent runs on the same lab instance
+
+The patcher only needs to run once per lab instance. After that, just:
 
 ```powershell
-.\change-lab-uk.ps1 -Path "C:\path\to\folder"
+cd C:\scripts
+.\changes.cmd uk
 ```
 
-To create a double-click launcher as well:
+Re-running the patcher on an already-patched instance is safe — it detects the existing patch and exits without making changes.
 
-```powershell
-.\change-lab-uk.ps1 -CreateLauncher
+## What gets skipped
+
+The script will report any hosts it could not reach, for example:
+
+```
+... skipped GAIA hosts
+    10.1.1.4
+    10.1.1.111
+Please refer to the lab topology if the skipped hosts are used during this course!
 ```
 
-That creates:
-
-```cmd
-run-uk.cmd
-```
-
-which runs:
-
-```cmd
-changes.cmd uk
-```
-
-## After patching
-
-Run this on **RDP-HOST**:
-
-```cmd
-changes.cmd uk
-```
-
-This should skip the manual selections for:
-
-1. English (United Kingdom)
-2. (UTC+00:00) Dublin, Edinburgh, Lisbon, London
-3. Europe
-4. London
+Skipped hosts are simply not reachable via WinRM or SSH at the time the script runs — typically because they are not part of the current lab topology, are powered off, or are still booting. This is normal and expected.
 
 ## Backups
 
-Before patching, the script creates timestamped backups of both files, for example:
+Before patching, the script creates timestamped backups of both files:
 
-- `changes.ps1.bak-20260329-184500`
-- `changes.cmd.bak-20260329-184500`
+```
+changes.ps1.bak-20260330-093021
+changes.cmd.bak-20260330-093021
+```
+
+To restore:
+
+```cmd
+copy changes.ps1.bak-20260330-093021 changes.ps1
+copy changes.cmd.bak-20260330-093021 changes.cmd
+```
+
+## Optional: double-click launcher
+
+Pass `-CreateLauncher` to also create `run-uk.cmd` in the scripts folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "$env:TEMP\v5.ps1" -Path C:\scripts -CreateLauncher
+```
+
+`run-uk.cmd` simply calls `changes.cmd uk` and can be double-clicked from Explorer.
 
 ## Notes
 
-- This depends on the target `changes.ps1` and `changes.cmd` matching the expected Skillable script layout.
-- If those files change significantly in a future lab version, the patcher may stop and report which expected block it could not find.
-- The patcher is designed to fail clearly rather than silently patch the wrong section.
+- The patcher targets the Skillable script layout as of mid-2025. If Skillable significantly revises `changes.ps1` in a future lab version, the patcher will stop and report which anchor it could not find rather than patching silently.
+- The patcher uses regex matching so minor formatting differences (extra spaces, different line endings) are handled gracefully.
 
 ## Disclaimer
 
-Review scripts before running them, especially when using `irm ... | iex`.
+Review scripts before running them, especially when downloading from the internet.
 
 Provided as-is, with no warranty.
