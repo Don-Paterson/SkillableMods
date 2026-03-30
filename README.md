@@ -4,8 +4,7 @@ Helpers for patching the Skillable lab `changes.ps1` / `changes.cmd` workflow so
 
 ## Quick start
 
-Run this on **RDP-HOST** at the start of every new lab instance:
-Run this in a **PowerShell** prompt (not CMD) on **RDP-HOST**:
+Run this on **RDP-HOST** at the start of every new lab instance and run it a **PowerShell** prompt (not CMD) on **RDP-HOST**:
 
 ```powershell
 irm "https://raw.githubusercontent.com/Don-Paterson/SkillableMods/main/run-uk-setup.ps1?$(Get-Date -Format 'yyyyMMddHHmmss')" | iex
